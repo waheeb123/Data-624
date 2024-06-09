@@ -1,0 +1,72 @@
+---
+title: "Homework batch 1"
+author: "Waheeb Algabri, William Berritt ,Kossi Akplaka "
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+
+```{r load-packages, message=F, warning=F}
+library(fpp3)
+```
+
+
+
+This assignment is to be submitted via email by the designated group representative and follows the Hyndman Version for the problems assigned in batch #1. The first batch consists of 12 problems, drawn from both KJ and HA sources. The problems to be addressed are as follows:
+
+The tasks outlined in these problems will require a thorough understanding of the materials covered in the specified chapters, ensuring a comprehensive grasp of the subject matter.
+
+
+
+### Exercise 2.3
+
+Download the file `tute1.csv` from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled `Sales`, `AdBudget` and `GDP`. `Sales` contains the quarterly sales for a small company over the period 1981-2005. `AdBudget` is the advertising budget and `GDP` is the gross domestic product. All series have been adjusted for inflation.
+
+a. You can read the data into R with the following script:
+
+```{r, message=F}
+tute1 <- readr::read_csv("https://raw.githubusercontent.com/waheeb123/Datasets/main/Data/tute1.csv")
+head(tute1)
+```
+
+b. Convert the data to time series
+
+```{r}
+mytimeseries <- tute1 |>
+  mutate(Quarter = yearquarter(Quarter)) |>
+  as_tsibble(index = Quarter)
+head(mytimeseries)
+```
+
+c. Construct time series plots of each of the three series
+
+```{r}
+mytimeseries |>
+  pivot_longer(-Quarter) |>
+  ggplot(aes(x = Quarter, y = value, colour = name)) +
+  geom_line() +
+  facet_grid(name ~ ., scales = "free_y")
+```
+
+Check what happens when you don’t include `facet_grid()`.
+
+```{r}
+mytimeseries |>
+  pivot_longer(-Quarter) |>
+  ggplot(aes(x = Quarter, y = value, colour = name)) +
+  geom_line() 
+```
+
+When you do not use `facet grid()`, each variable is plotted together on the same grid with the same scale. Plotting these variables together does not add any value to our analysis, and we can more easily see the individual trends for each variable when they are plotted on their own. 
+
