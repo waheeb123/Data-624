@@ -259,3 +259,99 @@ autoplot(forecast(arima_021_no_constant, h = 10))
 The ARIMA(0,1,1) model with drift seems to provide a reasonable fit to the austa series, with non-significant autocorrelation in the residuals and relatively low information criteria values.
 
 
+### Exercise 3.2
+
+2. Why is a Box-Cox transformation unhelpful for the cangas data?
+```{r}
+# Plotting the time series using base R
+plot(cangas, main = "Cangas Monthly Time Series")
+```
+```
+The transformation is unhelpful because, while it can help stabilize the variance, it doesn't factor in other things like seasonality and trends. Other techniques like differencing or seasonal decomp would be required here before Box-Cox at least.
+
+### Exercise 6.2
+
+2. The plastics data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.
+a) Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?
+```{r}
+# Plotting the monthly sales of Plastics
+plot(plastics, main = "Monthly Sales of Product A", xlab = "Time", ylab = "Sales (in thousands)")
+```
+Clear cycles in the data based on specific time and year
+
+
+b) Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+```{r}
+# Decompose the time series using multiplicative decomposition
+decomposed <- decompose(plastics, type = "multiplicative")
+
+# Plot the decomposition components
+plot(decomposed)
+```
+
+c) Do the results support the graphical interpretation from part a?
+Yes. The decomposed plot confirms seasonal fluctuations and a trend cycle
+
+d) Compute and plot the seasonally adjusted data.
+```{r}
+# Seasonally adjusted data
+seasonally_adjusted <- seasadj(decomposed)
+
+# Plot the seasonally adjusted data
+plot(seasonally_adjusted, main = "Seasonally Adjusted Sales of Product A", xlab = "Time", ylab = "Adjusted Sales (in thousands)")
+```
+
+e) Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+```{r}
+# Introduce an outlier (adding 500 to a random observation)
+# Choose a random index for outlier
+outlier_index <- sample(length(plastics), 1)
+
+# Add 500 to the chosen data point to introduce an outlier
+sales_with_outlier <- plastics
+sales_with_outlier[outlier_index] <- plastics[outlier_index] + 500
+
+# Decompose the updated time series with outlier
+decomposed_with_outlier <- decompose(sales_with_outlier, type = "multiplicative")
+
+# Seasonally adjust the updated time series with outlier
+seasonally_adjusted_with_outlier <- seasadj(decomposed_with_outlier)
+
+# Plot original and outlier-adjusted seasonally adjusted data
+plot(seasonally_adjusted, main = "Seasonally Adjusted Sales (Original)", ylab = "Adjusted Sales (in thousands)")
+```
+```{r}
+plot(seasonally_adjusted_with_outlier, main = "Seasonally Adjusted Sales (With Outlier)", ylab = "Adjusted Sales (in thousands)")
+```
+
+f) Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+If you're weighing more recent event heavily then yes, it does make an impact. Predictability goes down if you are weighing most recent data and there is an outlier.
+
+
+### Exercise 8.2
+
+2. A classic example of a non-stationary series is the daily closing IBM stock price series (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
+```{r}
+# Plot daily closing prices of IBM stock
+plot(ibmclose, main = "Daily Closing Prices of IBM Stock", xlab = "Days", ylab = "Price")
+```
+Shows clear trends throughout, indicating non-stationarity and requires differencing
+```{r}
+# ACF plot
+acf(ibmclose, main = "ACF of IBM Stock Prices")
+```
+Shows slow gradual downward trend, which also suggests non-stationarity and requires differencing
+```{r}
+# PACF plot
+pacf(ibmclose, main = "PACF of IBM Stock Prices")
+```
+Shows significant lag at first but then is non-zero for the rest, which suggests non-stationarity and requires differencing
+
+
+
+
+
+
+
+
+
