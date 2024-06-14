@@ -17,8 +17,9 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 ```
 
 
-```{r load-packages, message=F, warning=F}
+```{r}
 library(fpp3)
+library(readxl)
 library(fpp2)
 library(ggplot2)
 ```
@@ -33,46 +34,65 @@ The tasks outlined in these problems will require a thorough understanding of th
 
 ### Exercise 2.3
 
-Download the file `tute1.csv` from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled `Sales`, `AdBudget` and `GDP`. `Sales` contains the quarterly sales for a small company over the period 1981-2005. `AdBudget` is the advertising budget and `GDP` is the gross domestic product. All series have been adjusted for inflation.
+3. Download some monthly Australian retail data from OTexts.org/fpp2/extrafiles/retail.xlsx. These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.
 
-a. You can read the data into R with the following script:
 
-```{r, message=F}
-tute1 <- readr::read_csv("https://raw.githubusercontent.com/waheeb123/Datasets/main/Data/tute1.csv")
-head(tute1)
+a. Read the data into R
+```{r include=FALSE}
+
+ # The second argument (skip = 1) is required because the Excel sheet has two header rows
+retaildata <- readxl::read_excel("Homework Batch 1/retail.xlsx", skip = 1)
+
 ```
 
-b. Convert the data to time series
+b. Select one of the time series as follows (but replace the column name with your own chosen column):
 
 ```{r}
-mytimeseries <- tute1 |>
-  mutate(Quarter = yearquarter(Quarter)) |>
-  as_tsibble(index = Quarter)
-head(mytimeseries)
+myts <- ts(retaildata[, "A3349337W"], frequency = 12, start = c(1982, 4))
 ```
 
-c. Construct time series plots of each of the three series
+c. Explore your chosen retail time series using the following functions:
+
+autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf()
+
+Can you spot any seasonality, cyclicity and trend? What do you learn about the series?
 
 ```{r}
-mytimeseries |>
-  pivot_longer(-Quarter) |>
-  ggplot(aes(x = Quarter, y = value, colour = name)) +
-  geom_line() +
-  facet_grid(name ~ ., scales = "free_y")
+autoplot(myts) + ggtitle("A3349337W") +
+  xlab("Year") + ylab("Sales")
 ```
 
-Check what happens when you don’t include `facet_grid()`.
+The autoplot shows a strong seasonality to the data, as well as an upward trend. Though there is a brief dip from 1990-2000, there is no evidence that this is part of a cycle yet.
 
 ```{r}
-mytimeseries |>
-  pivot_longer(-Quarter) |>
-  ggplot(aes(x = Quarter, y = value, colour = name)) +
-  geom_line() 
+ggseasonplot(myts, year.labels = TRUE, year.labels.left = TRUE) +
+  ylab("Sales") + ggtitle("Seasonal Plot of A3349337W")
 ```
 
-When you do not use `facet grid()`, each variable is plotted together on the same grid with the same scale. Plotting these variables together does not add any value to our analysis, and we can more easily see the individual trends for each variable when they are plotted on their own. 
+The seasonal plot emphasizes the seasonality of the data. Sales start to rise in the fall before spiking sharply between November and December, then falling off after January, obviously coinciding with holiday shopping and sales for Christmas.
+
+```{r}
+ggsubseriesplot(myts) + ylab("Sales") +
+  ggtitle("Seasonal Subseries Plot of A3349337W")
+```
+
+Again, the subseries highlights the seasonality of the data, but paints it clearer than the seasonal plot. Though sales rise from September, the floor actually remains the same. The only real difference is in December, which not only has a higher ceiling, but a higher floor as well.
+
+```{r}
+gglagplot(myts)
+```
+
+The data is not very readable in this lag series. We can see some negative relationships and some positive relationships, but the amount of graphs, and the fact that this is monthly, make it difficult to discern much.
+
+```{r}
+ggAcf(myts)
+```
+
+The decrease in lags highlights the trend, while the scalloped shape shows the seasonality of the sales data.
+
 
 ***
+
 ### Exercise 7.1
 
 1. Consider the pigs series - the number of pigs slaughtered in Victoria each month.
@@ -181,6 +201,8 @@ The optimal values obtained using the custom optimization function are very clos
 
 
 ###  Exercise 8.8
+
+Consider austa, the total international visitors to Australia (in millions) for the period 1980-2015.
 
 Step 1: Use auto.arima() to Find an Appropriate ARIMA Model
 
