@@ -1,0 +1,664 @@
+---
+title: "Homework batch 1"
+author: "Waheeb Algabri, William Berritt ,Kossi Akplaka "
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+
+```{r}
+library(fpp3)
+library(readxl)
+library(fpp2)
+library(ggplot2)
+library(mlbench)
+library(GGally)
+library(corrplot)
+library(forecast)
+```
+
+### Introduction
+
+This assignment is to be submitted via email by the designated group representative and follows the Hyndman Version for the problems assigned in batch #1. The first batch consists of 12 problems, drawn from both KJ and HA sources. The problems to be addressed are as follows:
+
+The tasks outlined in these problems will require a thorough understanding of the materials covered in the specified chapters, ensuring a comprehensive grasp of the subject matter.
+
+
+
+### Exercise 2.3
+
+3. Download some monthly Australian retail data from OTexts.org/fpp2/extrafiles/retail.xlsx. These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.
+
+
+a. Read the data into R
+```{r include=FALSE}
+
+ # The second argument (skip = 1) is required because the Excel sheet has two header rows
+retaildata <- read.csv("https://raw.githubusercontent.com/waheeb123/Data-624/main/Homework%20Batch%201/retail.csv", skip = 1)
+
+```
+
+b. Select one of the time series as follows (but replace the column name with your own chosen column):
+
+```{r}
+myts <- ts(retaildata[, "A3349337W"], frequency = 12, start = c(1982, 4))
+```
+
+c. Explore your chosen retail time series using the following functions:
+
+autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf()
+
+Can you spot any seasonality, cyclicity and trend? What do you learn about the series?
+
+```{r}
+autoplot(myts) + ggtitle("A3349337W") +
+  xlab("Year") + ylab("Sales")
+```
+
+The autoplot shows a strong seasonality to the data, as well as an upward trend. Though there is a brief dip from 1990-2000, there is no evidence that this is part of a cycle yet.
+
+```{r}
+ggseasonplot(myts, year.labels = TRUE, year.labels.left = TRUE) +
+  ylab("Sales") + ggtitle("Seasonal Plot of A3349337W")
+```
+
+The seasonal plot emphasizes the seasonality of the data. Sales start to rise in the fall before spiking sharply between November and December, then falling off after January, obviously coinciding with holiday shopping and sales for Christmas.
+
+```{r}
+ggsubseriesplot(myts) + ylab("Sales") +
+  ggtitle("Seasonal Subseries Plot of A3349337W")
+```
+
+Again, the subseries highlights the seasonality of the data, but paints it clearer than the seasonal plot. Though sales rise from September, the floor actually remains the same. The only real difference is in December, which not only has a higher ceiling, but a higher floor as well.
+
+```{r}
+gglagplot(myts)
+```
+
+The data is not very readable in this lag series. We can see some negative relationships and some positive relationships, but the amount of graphs, and the fact that this is monthly, make it difficult to discern much.
+
+```{r}
+ggAcf(myts)
+```
+
+The decrease in lags highlights the trend, while the scalloped shape shows the seasonality of the sales data.
+
+
+***
+
+### Exercise 7.1
+
+1. Consider the pigs series - the number of pigs slaughtered in Victoria each month.
+ 
+ 
+* a) Use the ses() function in R to find the optimal values of  alpha and l0 , and generate forecasts for the next four months.
+
+```{r warning=FALSE, message=FALSE}
+
+#summary(pigs)
+
+summary(ses(pigs,h=4))
+```
+
+From the output, we observe the alpha to be 0.2971 and sigma to be 10308.58
+
+* b) Compute a 95% prediction interval for the first forecast using y±1.96 s where s is the standard deviation of the residuals. Compare your interval with the interval produced by R.
+
+```{r warning=FALSE, message=FALSE}
+
+s<-sd((ses(pigs, h=4))$residuals)
+print(paste0("lower Confidence Interval: ", ses(pigs,h=4)$mean[1]-1.96*s))
+print(paste0("Upper Confidence Interval: ", ses(pigs,h=4)$mean[1]+1.96*s))
+```
+
+Our confidence intervals are slightly different than the ones produced by r's output. They seem to be more narrow.
+
+```{r}
+ses_pigs <- ses(pigs, h = 4)
+
+# plot the data, fitted values and forecasts.
+autoplot(ses_pigs) +
+  autolayer(ses_pigs$fitted)
+```
+
+### Exercise 7.2
+
+2. Write your own function to implement simple exponential smoothing. The function should take arguments y (the time series), alpha (the smoothing parameter alpha) and level (the initial level l0). It should return the forecast of the next observation in the series. Does it give the same forecast as ses?
+
+```{r}
+SES <- function(y, alpha, l0){
+  y_hat <- l0
+  for(index in 1:length(y)){
+    y_hat <- alpha * y[index] + (1 - alpha) * y_hat
+  }
+  return(y_hat)
+}
+
+# Extract the optimal alpha and l0 from the ses model
+alpha <- ses_pigs$model$par[1]
+l0 <- ses_pigs$model$par[2]
+
+# Use the custom SES function to forecast the next observation
+forecast_SES <- SES(pigs, alpha, l0)
+print(paste("Forecast of next observation by SES function: ", forecast_SES))
+
+# Compare with the forecast from the ses function
+print(paste("Forecast of next observation by ses function: ", ses_pigs$mean[1]))
+
+```
+
+
+Found that SES function worked just like ses function.
+
+
+###  Exercise 7.3
+Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the optim() function to find the optimal values of  
+alpha and lo. Do you get the same values as the ses() function?
+
+
+```{r}
+SSE_SES <- function(params, y){
+  alpha <- params[1]
+  l0 <- params[2]
+  y_hat <- l0
+  sse <- 0
+  for(index in 1:length(y)){
+    sse <- sse + (y[index] - y_hat)^2
+    y_hat <- alpha * y[index] + (1 - alpha) * y_hat
+  }
+  return(sse)
+}
+
+# Use optim() to find the optimal alpha and l0
+initial_params <- c(0.5, pigs[1])  # Initial guess for alpha and l0
+opt_result <- optim(initial_params, SSE_SES, y = pigs, method = "L-BFGS-B", lower = c(0, 0), upper = c(1, Inf))
+
+# Extract the optimal parameters
+optimal_alpha <- opt_result$par[1]
+optimal_l0 <- opt_result$par[2]
+
+print(paste("Optimal alpha: ", optimal_alpha))
+print(paste("Optimal l0: ", optimal_l0))
+
+```
+
+
+The optimal values obtained using the custom optimization function are very close but not exactly the same as the values obtained by the ses() function.
+
+***
+
+###  Exercise 8.8
+
+Consider austa, the total international visitors to Australia (in millions) for the period 1980-2015.
+
+Step 1: Use auto.arima() to Find an Appropriate ARIMA Model
+
+```{r}
+library(forecast)
+
+# Load data
+data("austa")
+
+# 1. Find an appropriate ARIMA model using auto.arima()
+auto_arima_model <- auto.arima(austa)
+auto_arima_model
+```
+
+Step 2: Check That the Residuals Look Like White Noise
+
+```{r}
+# 2. Check residuals for white noise
+checkresiduals(auto_arima_model)
+
+```
+
+Step 3: Plot Forecasts for the Next 10 Periods and Plot forecasts from ARIMA
+
+
+```{r}
+
+# 3. Plot forecasts for the next 10 periods
+autoplot(forecast(auto_arima_model, h = 10))
+
+# 4. ARIMA(0,1,1) model with no drift
+arima_011_no_drift <- Arima(austa, order = c(0,1,1), include.drift = FALSE)
+autoplot(forecast(arima_011_no_drift, h = 10))
+
+# 5. Remove MA term from ARIMA(0,1,1) model and plot forecasts again
+arima_010_no_drift <- Arima(austa, order = c(0,1,0), include.drift = FALSE)
+autoplot(forecast(arima_010_no_drift, h = 10))
+
+# 6. ARIMA(2,1,3) model with drift and remove constant
+arima_213_with_drift <- Arima(austa, order = c(2,1,3), include.drift = TRUE, include.mean = FALSE)
+autoplot(forecast(arima_213_with_drift, h = 10))
+
+# 7. ARIMA(0,0,1) model with constant and remove MA term
+arima_001_with_constant <- Arima(austa, order = c(0,0,1), include.drift = FALSE, include.mean = TRUE)
+autoplot(forecast(arima_001_with_constant, h = 10))
+
+# 8. ARIMA(0,2,1) model with no constant
+arima_021_no_constant <- Arima(austa, order = c(0,2,1), include.drift = FALSE, include.mean = FALSE)
+autoplot(forecast(arima_021_no_constant, h = 10))
+
+```
+
+
+The ARIMA(0,1,1) model with drift seems to provide a reasonable fit to the austa series, with non-significant autocorrelation in the residuals and relatively low information criteria values.
+
+
+### Exercise 3.2
+
+2. Why is a Box-Cox transformation unhelpful for the cangas data?
+```{r}
+# Plotting the time series using base R
+plot(cangas, main = "Cangas Monthly Time Series")
+```
+
+The transformation is unhelpful because, while it can help stabilize the variance, it doesn't factor in other things like seasonality and trends. Other techniques like differencing or seasonal decomp would be required here before Box-Cox at least.
+
+### Exercise 6.2
+
+2. The plastics data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.
+a) Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?
+```{r}
+# Plotting the monthly sales of Plastics
+plot(plastics, main = "Monthly Sales of Product A", xlab = "Time", ylab = "Sales (in thousands)")
+```
+Clear cycles in the data based on specific time and year
+
+
+b) Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+```{r}
+# Decompose the time series using multiplicative decomposition
+decomposed <- decompose(plastics, type = "multiplicative")
+
+# Plot the decomposition components
+plot(decomposed)
+```
+
+c) Do the results support the graphical interpretation from part a?
+Yes. The decomposed plot confirms seasonal fluctuations and a trend cycle
+
+d) Compute and plot the seasonally adjusted data.
+```{r}
+# Seasonally adjusted data
+seasonally_adjusted <- seasadj(decomposed)
+
+# Plot the seasonally adjusted data
+plot(seasonally_adjusted, main = "Seasonally Adjusted Sales of Product A", xlab = "Time", ylab = "Adjusted Sales (in thousands)")
+```
+
+e) Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+```{r}
+# Introduce an outlier (adding 500 to a random observation)
+# Choose a random index for outlier
+outlier_index <- sample(length(plastics), 1)
+
+# Add 500 to the chosen data point to introduce an outlier
+sales_with_outlier <- plastics
+sales_with_outlier[outlier_index] <- plastics[outlier_index] + 500
+
+# Decompose the updated time series with outlier
+decomposed_with_outlier <- decompose(sales_with_outlier, type = "multiplicative")
+
+# Seasonally adjust the updated time series with outlier
+seasonally_adjusted_with_outlier <- seasadj(decomposed_with_outlier)
+
+# Plot original and outlier-adjusted seasonally adjusted data
+plot(seasonally_adjusted, main = "Seasonally Adjusted Sales (Original)", ylab = "Adjusted Sales (in thousands)")
+```
+```{r}
+plot(seasonally_adjusted_with_outlier, main = "Seasonally Adjusted Sales (With Outlier)", ylab = "Adjusted Sales (in thousands)")
+```
+
+f) Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+If you're weighing more recent event heavily then yes, it does make an impact. Predictability goes down if you are weighing most recent data and there is an outlier.
+
+
+### Exercise 8.2
+
+2. A classic example of a non-stationary series is the daily closing IBM stock price series (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
+```{r}
+# Plot daily closing prices of IBM stock
+plot(ibmclose, main = "Daily Closing Prices of IBM Stock", xlab = "Days", ylab = "Price")
+```
+Shows clear trends throughout, indicating non-stationarity and requires differencing
+```{r}
+# ACF plot
+acf(ibmclose, main = "ACF of IBM Stock Prices")
+```
+Shows slow gradual downward trend, which also suggests non-stationarity and requires differencing
+```{r}
+# PACF plot
+pacf(ibmclose, main = "PACF of IBM Stock Prices")
+
+```
+Shows significant lag at first but then is non-zero for the rest, which suggests non-stationarity and requires differencing
+
+
+# Excercise 2.1
+
+Question: 
+
+Use the help function to explore what the series gold, woolyrnq and gas represent.
+
+a) Use autoplot() to plot each of these in separate plots.
+b) What is the frequency of each series? Hint: apply the frequency() function.
+c) Use which.max() to spot the outlier in the gold series. Which observation was it?
+
+Answer:
+
+### Help function 
+
+Let's use the help function to explore the data series 'gold', 'woolyrnq' and 'gas'
+
+```{r}
+help(gold)
+```
+
+This data series represents the daily morning gold prices in US dollars from 1 January 1985 to 31 March 1989.
+
+```{r}
+help(woolyrnq)
+```
+
+This data series tracks the Quarterly production of woollen yarn in Australia in tonnes from Mar 1965 to Sep 1994.
+
+```{r}
+help(gas)
+```
+
+This data series tracks Australian monthly gas production from 1956 to 1995.
+
+### Data visualization
+
+Here, we will use 'autoplot' to plot the time series separately
+
+```{r}
+# Load the datasets
+data("gold")
+data("woolyrnq")
+data("gas")
+
+# Plot each series using autoplot()
+autoplot(gold) + ggtitle("Daily Morning Gold Prices in US Dollars (1985-1989)")
+autoplot(woolyrnq) + ggtitle("Quarterly Woollen Yarn Production in Australia (1965-1994)")
+autoplot(gas) + ggtitle("Monthly Gas Production in Australia (1956-1995)")
+```
+Observation:
+
+- Gold Price: The price of gold generally rises day over day until approximately day 770, where it experiences a significant spike. After this peak, the price trends downward until about day 1000.
+
+- Woolen Yarn Production: The production of woolen yarn exhibits a seasonal pattern, characterized by regular fluctuations with many ups and downs.
+
+- Gas Production: Gas production shows a seasonal pattern and a noticeable upward trend, particularly after 1970.
+
+### Frequency of the each series
+
+```{r}
+# Find the frequency of each series
+gold_frequency <- frequency(gold)
+woolyrnq_frequency <- frequency(woolyrnq)
+gas_frequency <- frequency(gas)
+
+# Print the frequencies
+gold_frequency
+woolyrnq_frequency
+gas_frequency
+```
+
+To summarize, here is the frequency of the series
+
+- gold: Daily data, so the frequency should be around 365.
+
+- woolyrnq: Quarterly data, so the frequency should be 4.
+
+- gas: Monthly data, so the frequency should be 12.
+
+
+### Outlier detection for the Gold data
+
+```{r}
+# Find the index of the maximum value in the gold series
+outlier_index <- which.max(gold)
+
+# Find the corresponding observation
+outlier_value <- gold[outlier_index]
+
+# Print the index and the corresponding observation
+outlier_index
+outlier_value
+```
+
+The outlier in the gold series was the spike that occurred on day 770, with the gold price reaching 593.7 US dollars.
+
+# Exercise 3.1
+
+Question:
+
+The UC Irvine Machine Learning Repository6 contains a data set related
+to glass identification. The data consist of 214 glass samples labeled as one
+of seven class categories. There are nine predictors, including the refractive
+index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+
+(a) Using visualizations, explore the predictor variables to understand their
+distributions as well as the relationships between predictors.
+
+(b) Do there appear to be any outliers in the data? Are any predictors skewed?
+
+(c) Are there any relevant transformations of one or more predictors that
+might improve the classification model?
+
+Answer:
+
+### Load the data set
+
+First, we need to load the data set using the library mlbench
+
+```{r}
+data(Glass)
+str(Glass)
+```
+
+This data frame has 214 observations of 10 variables. We can print the first 5 elements of the dataframe.
+
+```{r}
+head(Glass)
+```
+### Data visualization
+
+To visualize the distributions of predictor variables, we can use boxplot  for numerical variables.
+
+```{r}
+# Select predictor variables (excluding the response variable "Type")
+predictor_vars <- names(Glass)[1:9]
+
+# Create a long-format dataframe for boxplot visualization
+glass_long <- reshape2::melt(Glass, id.vars = "Type", measure.vars = predictor_vars)
+
+# Create a 3x3 grid of boxplots
+ggplot(glass_long, aes(x = Type, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free_y", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Boxplots of Predictors by Glass Type")
+```
+
+Overall Observations:
+
+- The RI, K, SI, and Ba show a relatively narrow range across glass types
+
+- Some elements like Na, Mg exhibit greater variability.
+
+A correlation heatmap can also be useful to understand the relationships between the predictor variables.
+
+```{r message=FALSE, warning=FALSE}
+# Calculate the correlation matrix
+cor_matrix <- cor(Glass[, 1:9])
+
+# Plot the correlation heatmap
+corrplot(cor_matrix, method = "color", type = "lower", 
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black", 
+         diag = FALSE)
+```
+
+There is a high and positive correlation between elements Ca and RI while Si and RI for instance is negatively correlated
+
+### Outiers and Skewness
+
+Based on the boxplots for the Glass dataset, outliers are observed in several predictor variables like RI, Mg, Si, and Ca for Type 2 glass. 
+
+Let's check for skewness using histograms 
+
+```{r}
+# Create a 3x3 grid of histograms
+par(mfrow=c(3, 3))
+for (var in predictor_vars) {
+  hist(Glass[, var], main = var, col = "lightblue", border = "black")
+}
+```
+
+The predictor Mg is skewed to the left while K, Ba, and Fe are skewed to the right
+
+### Classification Model
+
+- We can use Logarithmic Transformation for instance to compress the range of values and reduce the impact of outliers.
+
+- Similarly, Box-Cox transformation can handle various types of transformations to normalize the distribution.
+
+
+# Exercise 8.1
+
+Question:
+
+Figure 8.31 shows the ACFs for 36 random numbers, 360 random numbers and 1,000 random numbers. Explain the differences among these figures. Do they all indicate that the data are white noise?
+
+Figure 8.31: Left: ACF for a white noise series of 36 numbers. Middle: ACF for a white noise series of 360 numbers. Right: ACF for a white noise series of 1,000 numbers.
+
+Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
+
+Answer: 
+
+a) The differences between these figures lie in the lengths of each spike. As the number of random numbers increases (from 36 to 360), spikes in the ACF plots become shorter. The ACF plots display rapid decay and lack of significant autocorrelation patterns, suggesting white noise. 
+
+b) The distances of critical values from the mean of zero in ACF plots reflect the precision of autocorrelation estimates, which is influenced by sample size.
+
+
+# Exercise 8.6
+
+Answer:
+
+### Generate the data for AR(1)
+
+```{r}
+y <- ts(numeric(100))
+e <- rnorm(100)
+for(i in 2:100)
+  y[i] <- 0.6*y[i-1] + e[i]
+```
+
+### Produce a time plot 
+
+```{r}
+# Plot the simulated AR(1) process
+plot(y, type = 'l', main = 'Simulated AR(1) Process', ylab = 'y', xlab = 'Time')
+```
+
+To illustrate how the plot change as we change phi 1, let's simulate and plot two scenarios with different values of phi 1
+
+```{r}
+
+for(i in 2:100)
+  y[i] <- 0.9*y[i-1] + e[i]
+# Plot the simulated AR(1) process
+plot(y, type = 'l', main = 'Simulated AR(1) Process (phi1 = 0.9)', ylab = 'y', xlab = 'Time')
+```
+
+```{r}
+for(i in 2:100)
+  y[i] <- 0.3*y[i-1] + e[i]
+# Plot the simulated AR(1) process
+plot(y, type = 'l', main = 'Simulated AR(1) Process (phi1 = 0.3)', ylab = 'y', xlab = 'Time')
+```
+
+Higher values of phi 1 lead to stronger autocorrelation and smoother patterns
+
+### Generate data for MA(1)
+
+```{r}
+y <- ts(numeric(100))
+e <- rnorm(100)
+for(i in 2:100)
+  y[i] <- 0.6*e[i-1] + e[i]
+```
+
+### Plot the data for MA(1)
+
+```{r}
+n = 100
+
+# Simulate MA(1) process with theta1 = 0.6
+for (i in 2:n) {
+  y[i] <- e[i] + 0.6 * e[i-1]
+}
+
+# Plot the simulated MA(1) process
+plot(y, type = 'l', main = 'Simulated MA(1) Process', ylab = 'y', xlab = 'Time')
+```
+
+Changing theta1 to -0.6
+
+```{r}
+# Simulate MA(1) process with theta1 = -0.6
+for (i in 2:n) {
+  y[i] <- e[i] - 0.6 * e[i-1]
+}
+
+# Plot the simulated MA(1) process
+plot(y, type = 'l', main = 'Simulated MA(1) Process (theta1 = -0.6)', ylab = 'y', xlab = 'Time')
+```
+
+We observe that Positive values of theta1 create a smoother process with more persistence.
+
+### Generate and plot ARIMA(1,1)
+
+```{r}
+# Simulate ARMA(1,1) process
+for (i in 2:n) {
+   y[i] <- 0.6 * y[i-1] + 0.6*e[i-1] + e[i]
+}
+
+# Plot the simulated ARMA(1,1) process
+plot(y, type = 'l', main = 'Simulated ARMA(1,1) Process', ylab = 'y', xlab = 'Time')
+```
+
+### Generate and plot AR(2)
+
+```{r}
+# Simulate AR(2) process
+for(i in 3:100)
+  y[i] <- -0.8*y[i-1] + 0.3*y[i-2] + e[i]
+
+# Plot the simulated AR(2) process
+plot(y, type = 'l', main = 'Simulated AR(2) Process', ylab = 'y', xlab = 'Time')
+```
+
+...
+
+
+
+
+
+
