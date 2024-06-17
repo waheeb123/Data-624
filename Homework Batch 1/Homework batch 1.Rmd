@@ -101,57 +101,73 @@ The decrease in lags highlights the trend, while the scalloped shape shows the s
 1. Consider the pigs series - the number of pigs slaughtered in Victoria each month.
  
  
-* a) Use the ses() function in R to find the optimal values of  alpha and l0 , and generate forecasts for the next four months.
+* a) Use the ses() function in R to find the optimal values of  alpha and $l_0$ , and generate forecasts for the next four months.
 ```{r}
 head(pigs)
 ```
 
-
 ```{r}
-production <- pigs$production
+p <- aus_livestock %>% 
+  filter(Animal == 'Pigs' & State == 'Victoria')
 
-# Convert to time series (assuming monthly data starting from January 1967)
-production_ts <- ts(production, start = c(1967, 1), frequency = 12)
-
-# Fit the Simple Exponential Smoothing model
-fit <- ses(production_ts, h = 4)
-
-# Display the summary of the model to see the optimal values of alpha and l0
-summary(fit)
-
-# Plot the forecasts
-autoplot(fit) + 
-  ggtitle("Forecasts from Simple Exponential Smoothing") +
-  xlab("Year") + ylab("Number of Pigs Slaughtered")
-
+pigs <- p %>%
+  autoplot(Count) +
+  labs(title = 'Timeseries')
+pigs
 ```
 
-From the output, we observe the alpha to be 0.9999 and sigma to be 144.1414
+```{r}
+fit <- p%>%
+  model(ses = ETS(Count ~ error('A') + trend('N') + season('N')))
+opt_val <- fit %>% report()
+```
+
+```{r}
+pigsforecast <- fit %>%
+  forecast(h = 4)
+pigsforecast
+```
+
+```{r}
+plot <- fit %>%
+  forecast(h = 4) %>%
+  autoplot(filter(p, Month >= yearmonth('2016 Jan'))) +
+  labs(title = 'Four Month Forecast')
+plot
+```
+
 
 * b) Compute a 95% prediction interval for the first forecast using y±1.96 s where s is the standard deviation of the residuals. Compare your interval with the interval produced by R.
 
 ```{r}
-# Given values
-point_forecast <- 3241.984
-sigma <- 144.1414
+y<- pigsforecast %>%
+  pull(Count) %>%
+  head(1)
 
-# Compute 95% prediction interval
-lower_bound_manual <- point_forecast - 1.96 * sigma
-upper_bound_manual <- point_forecast + 1.96 * sigma
 
-# Display the manually computed interval
-cat("Manually computed 95% prediction interval:\n")
-cat("Lower Bound:", round(lower_bound_manual, 2), "\n")
-cat("Upper Bound:", round(upper_bound_manual, 2), "\n")
+sD <- augment(fit) %>%
+  pull(.resid) %>%
+  sd()
 
+# Calculate the lower and upper confidence intervals. 
+lowerCi <- y - 1.96 * sD
+upperCi <- y + 1.96 * sD
+z <- c(lowerCi, upperCi)
+names(z) <- c('Lower', 'Upper')
+z
 ```
 
-Compare the manually computed interval with the one produced by R to assess their similarity. The manually computed interval provides a verification step to ensure consistency with the SES model's prediction intervals. This comparison helps validate the accuracy and reliability of the SES model's forecasting capabilities for the first forecasted value.
+The 95% prediction interval for the first forecast is from 76871 to 113502.
+
+```{r}
+hilo(pigsforecast$Count, 95)
+```
 
 
 ### Exercise 7.2
 
 2. Write your own function to implement simple exponential smoothing. The function should take arguments y (the time series), alpha (the smoothing parameter alpha) and level (the initial level $l_0$). It should return the forecast of the next observation in the series. Does it give the same forecast as ses?
+
 
 ```{r}
 ses_forecast <- function(y, alpha, level) {
@@ -169,14 +185,14 @@ print(forecast_manual)
 
 ```
 
-Based on the provided forecasts and intervals, the forecast from your custom SES function (2724.992) does not match the forecast (3241.984) produced by R's ses() function for January 1971. 
-
+Based on the provided forecasts and intervals, the forecast from the custom SES function (2724.992) does not match the forecast (95187) produced by R's ses() function for January 2019 (represented as "2019 Jan").
 
 ### Exercise 7.3
 Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the optim() function to find the optimal values of  
 alpha and lo. Do you get the same values as the ses() function?
 
 ```{r}
+# Function to calculate SSE for SES
 ses_sse <- function(params, y) {
   alpha <- params[1]
   level <- params[2]
@@ -191,22 +207,22 @@ ses_sse <- function(params, y) {
 }
 
 # Example usage of optim() to find optimal alpha and level
-initial_params <- c(alpha = 0.1, level = mean(production))  # Initial guess
-optimal_params <- optim(initial_params, ses_sse, y = production_ts)$par
+initial_params <- c(alpha = 0.1, level = mean(p$Count))  # Initial guess
+optimal_params <- optim(initial_params, ses_sse, y = p$Count)$par
 optimal_alpha <- optimal_params[1]
 optimal_level <- optimal_params[2]
 
-# Compare with ses() function output
-fit_optim <- ses(production_ts)
-summary(fit_optim)  # Check the summary for alpha and l0
+# Compare with SES model parameters
+fit_optim <- ses(p, alpha = optimal_alpha, initial = "simple")
+summary(fit_optim)  # Check summary for alpha and l0
 
-# Check if the optimal values are similar to ses() function
-print(paste("Optimal alpha (optim()):", optimal_alpha))
-print(paste("Optimal l0 (optim()):", optimal_level))
+# Check if optimal values are similar to ses() function
+cat("Optimal alpha (optim()):", round(optimal_alpha, 4), "\n")
+cat("Optimal l0 (optim()):", round(optimal_level, 2), "\n")
 
 ```
 
-The values obtained from optim() for $α$ and $l_0$ are not the same as those obtained directly from the SES model using R's ses() function. This discrepancy suggests that the optimization process (optim()) might have found a different set of parameters that minimized the sum of squared errors compared to the default parameters used by SES model.
+These optimal values were obtained to minimize the sum of squared errors (SSE) in the SES model, indicating the parameters that best fit the historical data for forecasting purposes.So, the optimal values obtained from the optim() function (for alpha and $l_0$) do not match the values obtained directly from the SES model using R's ses() function
 
 ***
 
