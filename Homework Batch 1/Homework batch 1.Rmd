@@ -471,7 +471,7 @@ outlier_value
 
 The outlier in the gold series was the spike that occurred on day 770, with the gold price reaching 593.7 US dollars.
 
-#### Exercise 3.1
+### Exercise 3.1
 
 Question:
 
