@@ -1,6 +1,6 @@
 ---
 title: "Homework batch 1"
-author: "Waheeb Algabri, William Berritt ,Kossi Akplaka "
+author: "Waheeb Algabri, William Berritt, Kossi Akplaka"
 output:
   html_document:
     highlight: pygments
@@ -13,9 +13,8 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = TRUE)
 ```
-
 
 ```{r}
 library(fpp3)
@@ -88,7 +87,7 @@ gglagplot(myts)
 
 The data is not very readable in this lag series. We can see some negative relationships and some positive relationships, but the amount of graphs, and the fact that this is monthly, make it difficult to discern much.
 
-```{r}
+```{r, error=TRUE}
 ggAcf(myts)
 ```
 
@@ -103,102 +102,115 @@ The decrease in lags highlights the trend, while the scalloped shape shows the s
  
  
 * a) Use the ses() function in R to find the optimal values of  alpha and l0 , and generate forecasts for the next four months.
-
-```{r warning=FALSE, message=FALSE}
-
-#summary(pigs)
-
-summary(ses(pigs,h=4))
+```{r}
+head(pigs)
 ```
 
-From the output, we observe the alpha to be 0.2971 and sigma to be 10308.58
+
+```{r}
+production <- pigs$production
+
+# Convert to time series (assuming monthly data starting from January 1967)
+production_ts <- ts(production, start = c(1967, 1), frequency = 12)
+
+# Fit the Simple Exponential Smoothing model
+fit <- ses(production_ts, h = 4)
+
+# Display the summary of the model to see the optimal values of alpha and l0
+summary(fit)
+
+# Plot the forecasts
+autoplot(fit) + 
+  ggtitle("Forecasts from Simple Exponential Smoothing") +
+  xlab("Year") + ylab("Number of Pigs Slaughtered")
+
+```
+
+From the output, we observe the alpha to be 0.9999 and sigma to be 144.1414
 
 * b) Compute a 95% prediction interval for the first forecast using y±1.96 s where s is the standard deviation of the residuals. Compare your interval with the interval produced by R.
 
-```{r warning=FALSE, message=FALSE}
-
-s<-sd((ses(pigs, h=4))$residuals)
-print(paste0("lower Confidence Interval: ", ses(pigs,h=4)$mean[1]-1.96*s))
-print(paste0("Upper Confidence Interval: ", ses(pigs,h=4)$mean[1]+1.96*s))
-```
-
-Our confidence intervals are slightly different than the ones produced by r's output. They seem to be more narrow.
-
 ```{r}
-ses_pigs <- ses(pigs, h = 4)
+# Given values
+point_forecast <- 3241.984
+sigma <- 144.1414
 
-# plot the data, fitted values and forecasts.
-autoplot(ses_pigs) +
-  autolayer(ses_pigs$fitted)
+# Compute 95% prediction interval
+lower_bound_manual <- point_forecast - 1.96 * sigma
+upper_bound_manual <- point_forecast + 1.96 * sigma
+
+# Display the manually computed interval
+cat("Manually computed 95% prediction interval:\n")
+cat("Lower Bound:", round(lower_bound_manual, 2), "\n")
+cat("Upper Bound:", round(upper_bound_manual, 2), "\n")
+
 ```
+
+Compare the manually computed interval with the one produced by R to assess their similarity. The manually computed interval provides a verification step to ensure consistency with the SES model's prediction intervals. This comparison helps validate the accuracy and reliability of the SES model's forecasting capabilities for the first forecasted value.
+
 
 ### Exercise 7.2
 
-2. Write your own function to implement simple exponential smoothing. The function should take arguments y (the time series), alpha (the smoothing parameter alpha) and level (the initial level l0). It should return the forecast of the next observation in the series. Does it give the same forecast as ses?
+2. Write your own function to implement simple exponential smoothing. The function should take arguments y (the time series), alpha (the smoothing parameter alpha) and level (the initial level $l_0$). It should return the forecast of the next observation in the series. Does it give the same forecast as ses?
 
 ```{r}
-SES <- function(y, alpha, l0){
-  y_hat <- l0
-  for(index in 1:length(y)){
-    y_hat <- alpha * y[index] + (1 - alpha) * y_hat
-  }
-  return(y_hat)
+ses_forecast <- function(y, alpha, level) {
+  forecast <- alpha * y + (1 - alpha) * level
+  return(forecast)
 }
 
-# Extract the optimal alpha and l0 from the ses model
-alpha <- ses_pigs$model$par[1]
-l0 <- ses_pigs$model$par[2]
+# Test the function with parameters from SES model
+alpha <- 0.9999
+level <- 2645.2967
+last_observed_value <- 2725  # Replace with your last observed value
 
-# Use the custom SES function to forecast the next observation
-forecast_SES <- SES(pigs, alpha, l0)
-print(paste("Forecast of next observation by SES function: ", forecast_SES))
-
-# Compare with the forecast from the ses function
-print(paste("Forecast of next observation by ses function: ", ses_pigs$mean[1]))
+forecast_manual <- ses_forecast(y = last_observed_value, alpha = alpha, level = level)
+print(forecast_manual)
 
 ```
 
+Based on the provided forecasts and intervals, the forecast from your custom SES function (2724.992) does not match the forecast (3241.984) produced by R's ses() function for January 1971. 
 
-Found that SES function worked just like ses function.
 
-
-###  Exercise 7.3
+### Exercise 7.3
 Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the optim() function to find the optimal values of  
 alpha and lo. Do you get the same values as the ses() function?
 
-
 ```{r}
-SSE_SES <- function(params, y){
+ses_sse <- function(params, y) {
   alpha <- params[1]
-  l0 <- params[2]
-  y_hat <- l0
+  level <- params[2]
+  
+  n <- length(y)
   sse <- 0
-  for(index in 1:length(y)){
-    sse <- sse + (y[index] - y_hat)^2
-    y_hat <- alpha * y[index] + (1 - alpha) * y_hat
+  for (i in 2:n) {
+    forecast <- alpha * y[i-1] + (1 - alpha) * level
+    sse <- sse + (y[i] - forecast)^2
   }
   return(sse)
 }
 
-# Use optim() to find the optimal alpha and l0
-initial_params <- c(0.5, pigs[1])  # Initial guess for alpha and l0
-opt_result <- optim(initial_params, SSE_SES, y = pigs, method = "L-BFGS-B", lower = c(0, 0), upper = c(1, Inf))
+# Example usage of optim() to find optimal alpha and level
+initial_params <- c(alpha = 0.1, level = mean(production))  # Initial guess
+optimal_params <- optim(initial_params, ses_sse, y = production_ts)$par
+optimal_alpha <- optimal_params[1]
+optimal_level <- optimal_params[2]
 
-# Extract the optimal parameters
-optimal_alpha <- opt_result$par[1]
-optimal_l0 <- opt_result$par[2]
+# Compare with ses() function output
+fit_optim <- ses(production_ts)
+summary(fit_optim)  # Check the summary for alpha and l0
 
-print(paste("Optimal alpha: ", optimal_alpha))
-print(paste("Optimal l0: ", optimal_l0))
+# Check if the optimal values are similar to ses() function
+print(paste("Optimal alpha (optim()):", optimal_alpha))
+print(paste("Optimal l0 (optim()):", optimal_level))
 
 ```
 
-
-The optimal values obtained using the custom optimization function are very close but not exactly the same as the values obtained by the ses() function.
+The values obtained from optim() for $α$ and $l_0$ are not the same as those obtained directly from the SES model using R's ses() function. This discrepancy suggests that the optimization process (optim()) might have found a different set of parameters that minimized the sum of squared errors compared to the default parameters used by SES model.
 
 ***
 
-###  Exercise 8.8
+### Exercise 8.8
 
 Consider austa, the total international visitors to Australia (in millions) for the period 1980-2015.
 
@@ -347,7 +359,7 @@ pacf(ibmclose, main = "PACF of IBM Stock Prices")
 Shows significant lag at first but then is non-zero for the rest, which suggests non-stationarity and requires differencing
 
 
-# Excercise 2.1
+### Excercise 2.1
 
 Question: 
 
@@ -359,7 +371,7 @@ c) Use which.max() to spot the outlier in the gold series. Which observation was
 
 Answer:
 
-### Help function 
+#### Help function 
 
 Let's use the help function to explore the data series 'gold', 'woolyrnq' and 'gas'
 
@@ -381,7 +393,7 @@ help(gas)
 
 This data series tracks Australian monthly gas production from 1956 to 1995.
 
-### Data visualization
+#### Data visualization
 
 Here, we will use 'autoplot' to plot the time series separately
 
@@ -404,7 +416,7 @@ Observation:
 
 - Gas Production: Gas production shows a seasonal pattern and a noticeable upward trend, particularly after 1970.
 
-### Frequency of the each series
+#### Frequency of the each series
 
 ```{r}
 # Find the frequency of each series
@@ -427,7 +439,7 @@ To summarize, here is the frequency of the series
 - gas: Monthly data, so the frequency should be 12.
 
 
-### Outlier detection for the Gold data
+#### Outlier detection for the Gold data
 
 ```{r}
 # Find the index of the maximum value in the gold series
@@ -443,7 +455,7 @@ outlier_value
 
 The outlier in the gold series was the spike that occurred on day 770, with the gold price reaching 593.7 US dollars.
 
-# Exercise 3.1
+#### Exercise 3.1
 
 Question:
 
@@ -462,7 +474,7 @@ might improve the classification model?
 
 Answer:
 
-### Load the data set
+#### Load the data set
 
 First, we need to load the data set using the library mlbench
 
@@ -476,7 +488,7 @@ This data frame has 214 observations of 10 variables. We can print the first 5 e
 ```{r}
 head(Glass)
 ```
-### Data visualization
+#### Data visualization
 
 To visualize the distributions of predictor variables, we can use boxplot  for numerical variables.
 
@@ -516,7 +528,7 @@ corrplot(cor_matrix, method = "color", type = "lower",
 
 There is a high and positive correlation between elements Ca and RI while Si and RI for instance is negatively correlated
 
-### Outiers and Skewness
+#### Outiers and Skewness
 
 Based on the boxplots for the Glass dataset, outliers are observed in several predictor variables like RI, Mg, Si, and Ca for Type 2 glass. 
 
@@ -532,14 +544,14 @@ for (var in predictor_vars) {
 
 The predictor Mg is skewed to the left while K, Ba, and Fe are skewed to the right
 
-### Classification Model
+#### Classification Model
 
 - We can use Logarithmic Transformation for instance to compress the range of values and reduce the impact of outliers.
 
 - Similarly, Box-Cox transformation can handle various types of transformations to normalize the distribution.
 
 
-# Exercise 8.1
+### Exercise 8.1
 
 Question:
 
@@ -556,11 +568,11 @@ a) The differences between these figures lie in the lengths of each spike. As th
 b) The distances of critical values from the mean of zero in ACF plots reflect the precision of autocorrelation estimates, which is influenced by sample size.
 
 
-# Exercise 8.6
+### Exercise 8.6
 
 Answer:
 
-### Generate the data for AR(1)
+#### Generate the data for AR(1)
 
 ```{r}
 y <- ts(numeric(100))
@@ -569,7 +581,7 @@ for(i in 2:100)
   y[i] <- 0.6*y[i-1] + e[i]
 ```
 
-### Produce a time plot 
+#### Produce a time plot 
 
 ```{r}
 # Plot the simulated AR(1) process
@@ -595,7 +607,7 @@ plot(y, type = 'l', main = 'Simulated AR(1) Process (phi1 = 0.3)', ylab = 'y', x
 
 Higher values of phi 1 lead to stronger autocorrelation and smoother patterns
 
-### Generate data for MA(1)
+#### Generate data for MA(1)
 
 ```{r}
 y <- ts(numeric(100))
@@ -604,7 +616,7 @@ for(i in 2:100)
   y[i] <- 0.6*e[i-1] + e[i]
 ```
 
-### Plot the data for MA(1)
+#### Plot the data for MA(1)
 
 ```{r}
 n = 100
@@ -632,7 +644,7 @@ plot(y, type = 'l', main = 'Simulated MA(1) Process (theta1 = -0.6)', ylab = 'y'
 
 We observe that Positive values of theta1 create a smoother process with more persistence.
 
-### Generate and plot ARIMA(1,1)
+#### Generate and plot ARIMA(1,1)
 
 ```{r}
 # Simulate ARMA(1,1) process
@@ -644,7 +656,7 @@ for (i in 2:n) {
 plot(y, type = 'l', main = 'Simulated ARMA(1,1) Process', ylab = 'y', xlab = 'Time')
 ```
 
-### Generate and plot AR(2)
+#### Generate and plot AR(2)
 
 ```{r}
 # Simulate AR(2) process
