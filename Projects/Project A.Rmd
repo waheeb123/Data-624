@@ -35,6 +35,8 @@ library(readxl)
 library(fpp3)
 library(kableExtra)
 library(tidyverse)
+library(forecast)
+library(openxlsx)
 ```
 
 ### Data exploration 
@@ -98,15 +100,44 @@ Make sure if there is more missing values
 sum(is.na(df))
 ```
 
-
-#### Initial Exploration of the Data
-
 In order to forecast each variable within each group, we needed to break the larger dataset into its individual groups so we could perform our analysis and properly visualize our data.
 
-We began by visualizing our data using a line-plot, this helped us to see initial trend, seasonality 
+### Data Preparation
+
+**Split Data into Categories**
+
+Separate the data into six sheets based on the category column.
+```{r}
+library(dplyr)
+categories <- unique(df$category)
+
+for (cat in categories) {
+  assign(paste0("df_", cat), df %>% filter(category == cat))
+}
+
+```
+
+**Sort Each Sheet by SeriesInd**
 
 ```{r}
-# Example: Line plot for Var01 by category
+for (cat in categories) {
+  assign(paste0("df_", cat), get(paste0("df_", cat)) %>% arrange(SeriesInd))
+}
+
+```
+
+
+### Exploratory Data Analysis (EDA)
+
+```{r}
+summary(df)
+
+```
+
+Visualization
+
+```{r}
+# Line plot for Var01 by category
 ggplot(df, aes(x = SeriesInd, y = Var01, group = category, color = category)) +
   geom_line() +
   labs(x = "Series Indicator", y = "Var01") +
@@ -116,7 +147,7 @@ ggplot(df, aes(x = SeriesInd, y = Var01, group = category, color = category)) +
 
 ```{r}
 
-# Example: Line plot for Var01 by category
+# Line plot for Var01 by category
 ggplot(df, aes(x = SeriesInd, y = Var02, group = category, color = category)) +
   geom_line() +
   labs(x = "Series Indicator", y = "Var02") +
@@ -125,58 +156,315 @@ ggplot(df, aes(x = SeriesInd, y = Var02, group = category, color = category)) +
 ```
 
 ```{r}
-# Example: Line plot for Var01 by category
+# Line plot for Var01 by category
 ggplot(df, aes(x = SeriesInd, y = Var03, group = category, color = category)) +
   geom_line() +
   labs(x = "Series Indicator", y = "Var03") +
   ggtitle("Trend and Seasonality of Var01 by Category")
 ```
 
+```{r}
+# Line plot for Var01 by category
+ggplot(df, aes(x = SeriesInd, y = Var05, group = category, color = category)) +
+  geom_line() +
+  labs(x = "Series Indicator", y = "Var03") +
+  ggtitle("Trend and Seasonality of Var01 by Category")
+```
+
+```{r}
+# Line plot for Var01 by category
+ggplot(df, aes(x = SeriesInd, y = Var07, group = category, color = category)) +
+  geom_line() +
+  labs(x = "Series Indicator", y = "Var03") +
+  ggtitle("Trend and Seasonality of Var01 by Category")
+```
+
+
+
+### Methodology:
+we chose ARIMA beacuse the AutoRegressive Integrated Moving Average (ARIMA) model is a popular and flexible method for time series forecasting. ARIMA models account for various patterns in the data, such as trends and seasonality, making them suitable for our analysis. We use ARIMA because it is well-suited for univariate time series forecasting, where the future value of a variable is predicted based on its own past values.
+
 ### Forecasts
 
 ### {.tabset}
 #### S01: Forecast Var01, Var02
 
-**Cleaning Data**
-
+##### Forecast Var01:
 ```{r}
-df[1:15,] %>%
-  kbl() %>%
-  kable_minimal()
+df_S01 <- df %>% filter(category == "S01")
+
+# Fit ARIMA model
+fit_Var01_S01 <- auto.arima(df_S01$Var01)
+
+# Forecast next 140 periods
+forecast_Var01_S01 <- forecast(fit_Var01_S01, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var01_S01) + 
+  labs(title = "Forecast of Var01 for S01", x = "Time", y = "Var01")
+
+# Save forecast results
+forecast_Var01_S01_df <- data.frame(
+  SeriesInd = max(df_S01$SeriesInd) + 1:max(140),
+  Var01 = as.numeric(forecast_Var01_S01$mean)
+)
+
 ```
 
+
+
+##### Forecast Var02:
 ```{r}
-# Convert SeriesInd to Date format
-df <- df %>%
-  mutate(date = as.Date(SeriesInd, origin = '1898-08-30'))
+# Fit ARIMA model
+fit_Var02_S01 <- auto.arima(df_S01$Var02)
 
-# Filter and select specific columns
-filtered_df <- df %>%
-  filter(SeriesInd < 43022 & category == 'S01') %>% 
-  select(SeriesInd, date, Var01, Var02)
+# Forecast next 140 periods
+forecast_Var02_S01 <- forecast(fit_Var02_S01, h = 140)
 
-# Print the resulting dataframe
-print(filtered_df)
-```
+# Plot forecast
+autoplot(forecast_Var02_S01) + 
+  labs(title = "Forecast of Var02 for S01", x = "Time", y = "Var02")
 
+# Save forecast results
+forecast_Var02_S01_df <- data.frame(
+  SeriesInd = max(df_S01$SeriesInd) + 1:max(140),
+  Var02 = as.numeric(forecast_Var02_S01$mean)
+)
 
-```{r}
-S01 <- df %>% 
-  mutate(df = as.Date(SeriesInd, origin = '1898-08-30')) %>%
-  filter(SeriesInd < 43022 & group == 'S01') %>% 
-  select (SeriesInd,date,Var01,Var02)
 ```
 
 
 
 
 #### S02: Forecast Var02, Var03
+
+##### Forecast Var02:
+```{r}
+df_S02 <- df %>% filter(category == "S02")
+
+# Fit ARIMA model
+fit_Var02_S02 <- auto.arima(df_S02$Var02)
+
+# Forecast next 140 periods
+forecast_Var02_S02 <- forecast(fit_Var02_S02, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var02_S02) + 
+  labs(title = "Forecast of Var02 for S02", x = "Time", y = "Var02")
+
+# Save forecast results
+forecast_Var02_S02_df <- data.frame(
+  SeriesInd = max(df_S02$SeriesInd) + 1:max(140),
+  Var02 = as.numeric(forecast_Var02_S02$mean)
+)
+
+```
+
+##### Forecast Var03:
+
+```{r}
+# Fit ARIMA model
+fit_Var03_S02 <- auto.arima(df_S02$Var03)
+
+# Forecast next 140 periods
+forecast_Var03_S02 <- forecast(fit_Var03_S02, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var03_S02) + 
+  labs(title = "Forecast of Var03 for S02", x = "Time", y = "Var03")
+
+# Save forecast results
+forecast_Var03_S02_df <- data.frame(
+  SeriesInd = max(df_S02$SeriesInd) + 1:max(140),
+  Var03 = as.numeric(forecast_Var03_S02$mean)
+)
+
+```
+
+
 #### S03: Forecast Var05, Var07
+
+##### Forecast Var05
+
+```{r}
+df_S03 <- df %>% filter(category == "S03")
+
+# Fit ARIMA model
+fit_Var05_S03 <- auto.arima(df_S03$Var05)
+
+# Forecast next 140 periods
+forecast_Var05_S03 <- forecast(fit_Var05_S03, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var05_S03) + 
+  labs(title = "Forecast of Var05 for S03", x = "Time", y = "Var05")
+
+# Save forecast results
+forecast_Var05_S03_df <- data.frame(
+  SeriesInd = max(df_S03$SeriesInd) + 1:max(140),
+  Var05 = as.numeric(forecast_Var05_S03$mean)
+)
+
+```
+
+##### Forecast Var07
+
+```{r}
+# Fit ARIMA model
+fit_Var07_S03 <- auto.arima(df_S03$Var07)
+
+# Forecast next 140 periods
+forecast_Var07_S03 <- forecast(fit_Var07_S03, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var07_S03) + 
+  labs(title = "Forecast of Var07 for S03", x = "Time", y = "Var07")
+
+# Save forecast results
+forecast_Var07_S03_df <- data.frame(
+  SeriesInd = max(df_S03$SeriesInd) + 1:max(140),
+  Var07 = as.numeric(forecast_Var07_S03$mean)
+)
+
+```
+
+
 #### S04: Forecast Var01, Var02
+
+```{r}
+df_S04 <- df %>% filter(category == "S04")
+
+# Fit ARIMA model
+fit_Var01_S04 <- auto.arima(df_S04$Var01)
+
+# Forecast next 140 periods
+forecast_Var01_S04 <- forecast(fit_Var01_S04, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var01_S04) + 
+  labs(title = "Forecast of Var01 for S04", x = "Time", y = "Var01")
+
+# Save forecast results
+forecast_Var01_S04_df <- data.frame(
+  SeriesInd = max(df_S04$SeriesInd) + 1:max(140),
+  Var01 = as.numeric(forecast_Var01_S04$mean)
+)
+
+```
+
+##### Forecast Var02:
+```{r}
+# Fit ARIMA model
+fit_Var02_S04 <- auto.arima(df_S04$Var02)
+
+# Forecast next 140 periods
+forecast_Var02_S04 <- forecast(fit_Var02_S04, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var02_S04) + 
+  labs(title = "Forecast of Var02 for S04", x = "Time", y = "Var02")
+
+# Save forecast results
+forecast_Var02_S04_df <- data.frame(
+  SeriesInd = max(df_S04$SeriesInd) + 1:max(140),
+  Var02 = as.numeric(forecast_Var02_S04$mean)
+)
+
+```
+
+
+
 #### S05: Forecast Var02, Var03
+##### Forecast Var02:
+```{r}
+df_S05 <- df %>% filter(category == "S05")
+
+# Fit ARIMA model
+fit_Var02_S05 <- auto.arima(df_S05$Var02)
+
+# Forecast next 140 periods
+forecast_Var02_S05 <- forecast(fit_Var02_S05, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var02_S05) + 
+  labs(title = "Forecast of Var02 for S05", x = "Time", y = "Var02")
+
+# Save forecast results
+forecast_Var02_S05_df <- data.frame(
+  SeriesInd = max(df_S05$SeriesInd) + 1:max(140),
+  Var02 = as.numeric(forecast_Var02_S05$mean)
+)
+
+```
+
+##### Forecast Var03:
+```{r}
+# Fit ARIMA model
+fit_Var03_S05 <- auto.arima(df_S05$Var03)
+
+# Forecast next 140 periods
+forecast_Var03_S05 <- forecast(fit_Var03_S05, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var03_S05) + 
+  labs(title = "Forecast of Var03 for S05", x = "Time", y = "Var03")
+
+# Save forecast results
+forecast_Var03_S05_df <- data.frame(
+  SeriesInd = max(df_S05$SeriesInd) + 1:max(140),
+  Var03 = as.numeric(forecast_Var03_S05$mean)
+)
+
+```
+
+
 #### S06: Forecast Var05, Var07
+##### Forecast Var05:
+
+```{r}
+df_S06 <- df %>% filter(category == "S06")
+
+# Fit ARIMA model
+fit_Var05_S06 <- auto.arima(df_S06$Var05)
+
+# Forecast next 140 periods
+forecast_Var05_S06 <- forecast(fit_Var05_S06, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var05_S06) + 
+  labs(title = "Forecast of Var05 for S06", x = "Time", y = "Var05")
+
+# Save forecast results
+forecast_Var05_S06_df <- data.frame(
+  SeriesInd = max(df_S06$SeriesInd) + 1:max(140),
+  Var05 = as.numeric(forecast_Var05_S06$mean)
+)
+
+```
+
+##### Forecast Var07:
+
+```{r}
+# Fit ARIMA model
+fit_Var07_S06 <- auto.arima(df_S06$Var07)
+
+# Forecast next 140 periods
+forecast_Var07_S06 <- forecast(fit_Var07_S06, h = 140)
+
+# Plot forecast
+autoplot(forecast_Var07_S06) + 
+  labs(title = "Forecast of Var07 for S06", x = "Time", y = "Var07")
+
+# Save forecast results
+forecast_Var07_S06_df <- data.frame(
+  SeriesInd = max(df_S06$SeriesInd) + 1:max(140),
+  Var07 = as.numeric(forecast_Var07_S06$mean)
+)
+
+```
 
 
+### Result 
 
-
-
+Save Forecast Results into Excel Sheets
+Now that we have the forecast results for all specified variables and categories, let's save them into an Excel workbook.
