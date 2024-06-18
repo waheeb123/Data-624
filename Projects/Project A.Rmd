@@ -1,0 +1,58 @@
+---
+title: "Homework Project A"
+author: "Waheeb Algabri, William Berritt, Kossi Akplaka"
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = TRUE)
+```
+
+
+### Introduction
+
+In today's data-driven world, the ability to forecast accurately is crucial for strategic planning and decision-making. This project aims to harness the power of historical data to generate reliable forecasts for various series within a de-identified dataset. With a comprehensive dataset spanning 1622 periods, we will employ advanced data analysis and forecasting techniques to predict future trends for the next 140 periods.
+
+This report is crafted to cater to a diverse audience, ranging from individuals with no background in data science to seasoned data scientists. Our goal is to present the analysis and findings in a clear, concise, and accessible manner. We will explain the methodologies used, the rationale behind their selection, and the step-by-step process of our analysis, ensuring transparency and comprehensibility for all readers.
+
+The report is structured to balance technical rigor with simplicity, providing a thorough yet comprehensible narrative of our forecasting journey. We begin with an exploration of the data, followed by a detailed explanation of the forecasting methods applied, and conclude with the results and their implications. Visualizations and key insights will be highlighted to enhance understanding and readability.
+
+By leveraging fundamental techniques, thorough data exploration, and robust forecasting methods, this project not only aims to achieve high accuracy in predictions but also to demonstrate the importance of effective communication in data science. The accompanying Excel workbook will include the forecasted values for each category, organized systematically to facilitate error rate calculations and further analysis.
+
+Loading necessary Packages
+
+```{r, error=TRUE}
+library(readxl)
+library(fpp3)
+```
+
+Read the excel and extract the data 
+```{r}
+df <- read_excel("Projects/Data Set for Class.xls")
+head(df)
+```
+
+Using glimpse, we can view the attributes of our dataset
+```{r}
+glimpse(df)
+```
+
+
+
+
+
+
+
+
+
+
+
+
