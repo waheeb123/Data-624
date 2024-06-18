@@ -30,27 +30,151 @@ By leveraging fundamental techniques, thorough data exploration, and robust fore
 Loading necessary Packages
 
 ```{r, error=TRUE}
+library(ggplot2)
 library(readxl)
 library(fpp3)
+library(kableExtra)
+library(tidyverse)
 ```
 
-Read the excel and extract the data 
+### Data exploration 
+
+Read the excel file and extract the data
+
 ```{r}
-df <- read_excel("Projects/Data Set for Class.xls")
-head(df)
+df <- readxl::read_excel("Data set for Class.xls")
 ```
 
-Using glimpse, we can view the attributes of our dataset
+using glimpse, so we can view the attributes of our dataset
+
 ```{r}
 glimpse(df)
 ```
 
+Dataset have 10,572 rows and 7 columns.
+
+```{r}
+kable(head(df), caption = "First 6 Rows of Data")
+```
+
+check if there are any missing values in the entire dataframe
+```{r}
+any(is.na(df))
+
+```
+
+count the number of missing values in the entire dataframe
+```{r}
+sum(is.na(df))
+
+```
+
+
+```{r}
+# Identify numeric columns
+numeric_columns <- sapply(df, is.numeric)
+
+# Apply mean imputation to numeric columns
+for (col in names(df)[numeric_columns]) {
+  df[[col]][is.na(df[[col]])] <- mean(df[[col]], na.rm = TRUE)
+}
+
+# For non-numeric columns, we decide to use on a different imputation method, like using the mode for categorical columns
+# Define a function to get the mode
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Apply mode imputation to non-numeric columns
+for (col in names(df)[!numeric_columns]) {
+  df[[col]][is.na(df[[col]])] <- getmode(df[[col]])
+}
+
+```
+
+Make sure if there is more missing values 
+```{r}
+sum(is.na(df))
+```
+
+
+#### Initial Exploration of the Data
+
+In order to forecast each variable within each group, we needed to break the larger dataset into its individual groups so we could perform our analysis and properly visualize our data.
+
+We began by visualizing our data using a line-plot, this helped us to see initial trend, seasonality 
+
+```{r}
+# Example: Line plot for Var01 by category
+ggplot(df, aes(x = SeriesInd, y = Var01, group = category, color = category)) +
+  geom_line() +
+  labs(x = "Series Indicator", y = "Var01") +
+  ggtitle("Trend and Seasonality of Var01 by Category")
+
+```
+
+```{r}
+
+# Example: Line plot for Var01 by category
+ggplot(df, aes(x = SeriesInd, y = Var02, group = category, color = category)) +
+  geom_line() +
+  labs(x = "Series Indicator", y = "Var02") +
+  ggtitle("Trend and Seasonality of Var02 by Category")
+
+```
+
+```{r}
+# Example: Line plot for Var01 by category
+ggplot(df, aes(x = SeriesInd, y = Var03, group = category, color = category)) +
+  geom_line() +
+  labs(x = "Series Indicator", y = "Var03") +
+  ggtitle("Trend and Seasonality of Var01 by Category")
+```
+
+### Forecasts
+
+### {.tabset}
+#### S01: Forecast Var01, Var02
+
+**Cleaning Data**
+
+```{r}
+df[1:15,] %>%
+  kbl() %>%
+  kable_minimal()
+```
+
+```{r}
+# Convert SeriesInd to Date format
+df <- df %>%
+  mutate(date = as.Date(SeriesInd, origin = '1898-08-30'))
+
+# Filter and select specific columns
+filtered_df <- df %>%
+  filter(SeriesInd < 43022 & category == 'S01') %>% 
+  select(SeriesInd, date, Var01, Var02)
+
+# Print the resulting dataframe
+print(filtered_df)
+```
+
+
+```{r}
+S01 <- df %>% 
+  mutate(df = as.Date(SeriesInd, origin = '1898-08-30')) %>%
+  filter(SeriesInd < 43022 & group == 'S01') %>% 
+  select (SeriesInd,date,Var01,Var02)
+```
 
 
 
 
-
-
+#### S02: Forecast Var02, Var03
+#### S03: Forecast Var05, Var07
+#### S04: Forecast Var01, Var02
+#### S05: Forecast Var02, Var03
+#### S06: Forecast Var05, Var07
 
 
 
