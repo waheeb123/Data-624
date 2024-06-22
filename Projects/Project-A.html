@@ -1731,6 +1731,79 @@ values.</p>
 results for all specified variables and categories, let’s save them into
 an Excel workbook.</p>
 </div>
+<div id="data" class="section level2">
+<h2>Data</h2>
+<pre><code>## Error: Sheet &#39;S02&#39; not found</code></pre>
+<pre><code>## Error: Sheet &#39;S05&#39; not found</code></pre>
+<pre><code>## Error in select(s02, SeriesInd, Var02, Var03): object &#39;s02&#39; not found</code></pre>
+<pre><code>## # A tibble: 6 × 7
+##   SeriesInd category Var01     Var02 Var03 Var05 Var07
+##       &lt;dbl&gt; &lt;chr&gt;    &lt;dbl&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     40669 S03       30.6 123432400  30.3  30.5  30.6
+## 2     40669 S02       10.3  60855800  10.0  10.2  10.3
+## 3     40669 S01       26.6  10369300  25.9  26.2  26.0
+## 4     40669 S06       27.5  39335700  26.8  27.0  27.3
+## 5     40669 S05       69.3  27809100  68.2  68.7  69.2
+## 6     40669 S04       17.2  16587400  16.9  16.9  17.1</code></pre>
+<pre><code>## # A tibble: 6 × 7
+##   SeriesInd category Var01     Var02 Var03 Var05 Var07
+##       &lt;dbl&gt; &lt;chr&gt;    &lt;dbl&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     43221 S03       47.0 37035741.  46.1  46.6  46.6
+## 2     43221 S02       47.0 37035741.  46.1  46.6  46.6
+## 3     43221 S01       47.0 37035741.  46.1  46.6  46.6
+## 4     43221 S06       47.0 37035741.  46.1  46.6  46.6
+## 5     43221 S05       47.0 37035741.  46.1  46.6  46.6
+## 6     43221 S04       47.0 37035741.  46.1  46.6  46.6</code></pre>
+<pre><code>## Error in `rename()`:
+## ! Can&#39;t rename columns that don&#39;t exist.
+## ✖ Column `Var03.x` doesn&#39;t exist.</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s02_v02&#39; not found</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s02_v03&#39; not found</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s05_v03&#39; not found</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s02_v02&#39; not found</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s02_v03&#39; not found</code></pre>
+<pre><code>## Error in `geom_line()`:
+## ! Problem while computing aesthetics.
+## ℹ Error occurred in the 1st layer.
+## Caused by error in `FUN()`:
+## ! object &#39;s05_v03&#39; not found</code></pre>
+<pre><code>## Error in `filter()`:
+## ℹ In argument: `!is.na(s05_v03)`.
+## Caused by error:
+## ! object &#39;s05_v03&#39; not found</code></pre>
+<pre><code>## Error in xts(df[col], df$date): could not find function &quot;xts&quot;</code></pre>
+<pre><code>## Error in Arima(df$s02_v02, order = c(1, 1, q)): Not enough data to fit the model</code></pre>
+<pre><code>## Error in ts(x): &#39;ts&#39; object must have one or more observations</code></pre>
+<pre><code>## Error in ts(x): &#39;ts&#39; object must have one or more observations</code></pre>
+<pre><code>## Error in object$na.action: object of type &#39;closure&#39; is not subsettable</code></pre>
+<pre><code>## Error in x - fits: non-numeric argument to binary operator</code></pre>
+<pre><code>## Error in ts(x): &#39;ts&#39; object must have one or more observations</code></pre>
+<pre><code>## Error in object$na.action: object of type &#39;closure&#39; is not subsettable</code></pre>
+<pre><code>## Error in x - fits: non-numeric argument to binary operator</code></pre>
+<pre><code>## Error in ts(x): &#39;ts&#39; object must have one or more observations</code></pre>
+<pre><code>## Error in object$na.action: object of type &#39;closure&#39; is not subsettable</code></pre>
+<pre><code>## Error in x - fits: non-numeric argument to binary operator</code></pre>
+</div>
 
 
 

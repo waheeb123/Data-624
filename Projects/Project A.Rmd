@@ -468,3 +468,121 @@ forecast_Var07_S06_df <- data.frame(
 
 Save Forecast Results into Excel Sheets
 Now that we have the forecast results for all specified variables and categories, let's save them into an Excel workbook.
+
+
+
+## Data
+
+```{r}
+s02 <- read_excel('Data set for Class.xls',
+                  sheet = 'S02', skip = 2)
+s05 <- read_excel('Data set for Class.xls',
+                  sheet = 'S05', skip = 2)
+
+df <- left_join(
+  select(s02, SeriesInd, Var02, Var03),
+  select(s05, SeriesInd, Var03),
+  by = 'SeriesInd', keep = FALSE)
+```
+
+```{r}
+head(df)
+tail(df)
+```
+
+```{r}
+df <- df %>%
+  rename(date = SeriesInd,
+         s02_v02 = Var02,
+         s02_v03 = Var03.x,
+         s05_v03 = Var03.y)
+
+# for (row in 1623:nrow(df)) {
+#   df[row, 's02_v02'] <- NA
+#   df[row, 's02_v03'] <- NA
+#   df[row, 's05_v03'] <- NA
+# }
+# df[1620:1625,]
+
+df <- df[1:1622,]
+
+# as_tsibble(df, index = date, regular = TRUE) %>%
+#   model(classical_decomposition(s02_v02)) %>%
+#   components()
+```
+
+
+```{r}
+ggplot(df, aes(date, s02_v02)) +
+  geom_line()
+
+ggplot(df, aes(date, s02_v03)) +
+  geom_line()
+
+ggplot(df, aes(date, s05_v03)) +
+  geom_line()
+```
+
+```{r}
+data.frame(date = df$date[2:nrow(df)], s02_v02 = diff(df$s02_v02)) %>%
+  ggplot(aes(date, s02_v02)) +
+  geom_line()
+
+data.frame(date = df$date[2:nrow(df)], s02_v03 = diff(df$s02_v03)) %>%
+  ggplot(aes(date, s02_v03)) +
+  geom_line()
+
+data.frame(date = df$date[2:nrow(df)], s05_v03 = diff(df$s05_v03)) %>%
+  ggplot(aes(date, s05_v03)) +
+  geom_line()
+```
+
+```{r}
+diff(filter(df, !is.na(s05_v03))$s05_v03) %>%
+  tseries::adf.test()
+```
+
+
+```{r}
+for (col in colnames(df)[2:4]) {
+  print(ggAcf(xts(df[col], df$date)))
+  print(ggPacf(xts(df[col], df$date)))
+  print(gglagplot(xts(df[col], df$date, continuous = FALSE, seasonal = FALSE)))
+}
+```
+
+```{r}
+for (p in seq(1:5)) {
+  for (q in seq(1:5)) {
+    results <- Arima(df$s02_v02, order = c(1,1,q))
+    cat('For p =',p,'and','q =',q,', AICc is',results$aicc,'\n')
+  }
+}
+```
+
+```{r}
+auto.arima(df$s02_v02, approximation = FALSE, stepwise = FALSE)
+```
+
+```{r}
+model <- auto.arima(df$s02_v02, approximation = FALSE, stepwise = FALSE)
+checkresiduals(model)
+autoplot(forecast(model, h = 140))
+```
+
+
+```{r}
+model <- auto.arima(df$s02_v03, approximation = FALSE, stepwise = FALSE)
+checkresiduals(model)
+autoplot(forecast(model, h = 140))
+```
+
+
+```{r}
+model <- auto.arima(df$s05_v03, approximation = FALSE, stepwise = FALSE)
+checkresiduals(model)
+autoplot(forecast(model, h = 140))
+```
+
+
+
