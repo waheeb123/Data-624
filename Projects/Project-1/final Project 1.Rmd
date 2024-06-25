@@ -2,13 +2,15 @@
 title: "Project 1"
 author: "Waheeb Algabri, William Berritt, Kossi Akplaka"
 output:
+  word_document:
+    toc: true
+  pdf_document: default
   html_document:
     highlight: pygments
     theme: cerulean
     toc: true
     toc_float: true
-  pdf_document: default
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
