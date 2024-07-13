@@ -1,0 +1,410 @@
+---
+title: "Project 2"
+author: "Waheeb Algabri, William Berritt, Kossi Akplaka"
+date: "2024-07-12"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, error = TRUE, message = FALSE)
+```
+
+# Loading libraries
+
+```{r message=FALSE, warning=FALSE}
+library(caret)
+library(readxl)
+library(dplyr)
+library(car)
+library(xgboost)
+library(e1071) 
+library(mice)
+library(fastDummies)
+library(reshape2)
+library(openxlsx)
+```
+
+# Project Summary
+
+You are given a simple data set from a beverage manufacturing company.  It consists of 2,571 rows/cases of data and 33 columns / variables. Your goal is to use this data to predict PH (a column in the set).  Potential for hydrogen (pH) is a measure of acidity/alkalinity, it must conform in a critical range and therefore it is important to understand its influence and predict its values.   This is production data.  pH is a KPI, Key Performance Indicator.
+
+The objective of this project is to predict the pH value using the data provided
+
+# Data loading and exploration
+
+We've uploaded the data into GitHub for reproducibility
+
+```{r}
+# Load the dataset
+StudentData<- read.csv(
+  "https://raw.githubusercontent.com/waheeb123/Data-624/main/Projects/Project-2/StudentData%20-%20TO%20MODEL.csv")
+
+head(StudentData)
+```
+The training dataset has 33 columns including a categorical variable Brand Code and other predictors of the pH value.
+
+# Data exploration and cleaning
+
+- Average PH in the beverage
+
+Let's calculate the average PH in the dataset
+
+```{r}
+# Calculate mean of 'PH' column, handling NA values
+mean_PH <- mean(StudentData$PH, na.rm = TRUE)
+
+# Print the mean pH
+print(paste("The mean pH after handling NA values is:", mean_PH))
+```
+The average pH of an beverage is 8.54. Water naturally varies between about 6.5 and 8.5 on the pH scale. Bottled waters labeled as alkaline can be 8 and 9. 
+
+- Different brands of beverage
+
+Categories in Brand Code and Average pH
+
+```{r}
+# Convert 'Brand Code' to factor (categorical)
+StudentData_clean$Brand.Code <- as.factor(StudentData_clean$Brand.Code)
+
+# Calculate average pH for each category in 'Brand Code'
+brand_pH_avg <- StudentData_clean %>%
+  group_by(`Brand.Code`) %>%
+  summarise(avg_pH = mean(PH, na.rm = TRUE))
+
+brand_pH_avg
+```
+
+We have 4 different brands of beverage being manufactured and have some missing data in the Brand Code column
+
+- Summary of the data
+
+```{r}
+summary(StudentData)
+```
+    The summary of the StudentData dataset provides a comprehensive overview of key metrics used in beverage manufacturing. It indicates that variables like carbonation volume, fill ounces, and pressures (both carbonation and hydraulic) span a range from minimum to maximum values, suggesting variability in production conditions.
+    The presence of missing values in some variables, such as pH and oxygen filler, indicates potential data gaps that could affect the accuracy of the model. 
+
+- Missing values
+
+```{r}
+colSums(is.na(StudentData))
+```
+
+# Data Cleaning
+
+- Cleaning the data using the mice package
+
+MICE (Multivariate Imputation by Chained Equations) is a robust technique for handling missing data in datasets. It imputes missing values by modeling each variable with missing data as a function of other variables, preserving relationships and uncertainty through multiple imputations.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Create a mice imputation object
+StudentData_clean <- mice(StudentData, 
+                          method = 'pmm',
+                          m = 5, 
+                          maxit = 50)
+
+# Complete the imputation process
+StudentData_clean <- complete(StudentData_clean)
+```
+
+# Feature engineering
+
+After dealing with the missing values in the dataset, we will create dummies varibles for the categorical variable. This enhance the interpretability of the model results. Each dummy variable represents a specific category, making it easier to understand the impact of different categories on the prediction outcome.
+
+- Create dummy variables for 'Brand Code'
+
+```{r}
+# Create dummies variables
+StudentData_clean2 <- fastDummies::dummy_cols(StudentData_clean,
+                                              remove_first_dummy = TRUE)
+
+# Remove the Brand Code column
+StudentData_clean2 <- subset(StudentData_clean2, select = - Brand.Code)
+
+# Print the 5 elements of the data
+head(StudentData_clean2)
+```
+
+# Outlier Detection and Removal
+
+- Remove outliers in the data
+
+We defined a function remove_outliers_specific to remove outliers based on the interquartile range Q3 and Q1 for the PH column. 
+
+```{r}
+# Function to remove rows containing outliers based on IQR for a specific column
+remove_outliers_specific <- function(df, column_name) {
+  # Copy the dataframe to avoid modifying the original
+  df_clean <- df
+  
+  # Calculate quartiles and IQR for the specified column
+  Q1 <- quantile(df[[column_name]], 0.25)
+  Q3 <- quantile(df[[column_name]], 0.75)
+  IQR_val <- Q3 - Q1
+  
+  # Define the lower and upper bounds for outliers
+  lower_bound <- Q1 - 1.5 * IQR_val
+  upper_bound <- Q3 + 1.5 * IQR_val
+  
+  # Identify rows with outliers in the specified column
+  outliers <- df[[column_name]] < lower_bound | df[[column_name]] > upper_bound
+  
+  # Subset the dataframe to keep only rows without outliers for the specified column
+  df_clean <- df[!outliers, ]
+  
+  return(df_clean)
+}
+
+# Remove outliers specifically from the PH column
+StudentData_clean3 <- remove_outliers_specific(StudentData_clean2, "PH")
+```
+pH outside the quartile range Q3 and Q1 have been dropped. There were 18 outliers in  the data that were removed.
+
+# Data Exploration
+
+First, we will compute the correlation and visualize the correlation matrix
+
+- Correlation and visualization 
+
+```{r}
+# Calculate the correlation matrix
+correlation_matrix <- cor(StudentData_clean3)
+
+# Convert the correlation matrix to long format for plotting
+cor_melted <- melt(correlation_matrix)
+
+# Plot the heatmap
+ggplot(cor_melted, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0,
+                       limit = c(-1, 1), space = "Lab", name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, size = 10, hjust = 1)) +
+  coord_fixed()
+```
+
+There are high collinearities between the variables Carb Pressure, Hyd Pressure3, Balling Lvl, and Carb Rel.
+
+- Remove collinearities
+
+Let's remove the collinearities to improve the model performance
+
+```{r}
+StudentData_clean3 <- StudentData_clean3[, !colnames(StudentData_clean3) %in% "Carb Pressure"]
+StudentData_clean3 <- StudentData_clean3[, !colnames(StudentData_clean3) %in% "Hyd Pressure3"]
+StudentData_clean3 <- StudentData_clean3[, !colnames(StudentData_clean3) %in% "Balling Lvl"]
+StudentData_clean3 <- StudentData_clean3[, !colnames(StudentData_clean3) %in% "Carb Rel"]
+```
+
+
+# Model Building
+
+We split the data 80% to 20% between training and testing set
+
+```{r}
+set.seed(123)  # for reproducibility
+trainIndex <- createDataPartition(StudentData_clean3$PH, p = 0.8, list = FALSE)
+trainData <- StudentData_clean3[trainIndex, ]
+testData <- StudentData_clean3[-trainIndex, ]
+```
+
+- Linear regression model
+
+Linear models provide straightforward interpretation of coefficients. Each predictor's coefficient indicates the strength and direction of its relationship with the dependent variable. This makes it easy to understand the impact of each predictor on the outcome.
+
+```{r}
+set.seed(123)
+# Linear Regression
+model_lm <- lm(PH ~ ., data = trainData)
+predictions_lm <- predict(model_lm, newdata = testData)
+rsq_lm <- cor(predictions_lm, testData$PH)^2
+```
+
+
+- XGBoost model
+
+XGBoost have better predictive accuracy and ability to handle complex relationships. Its ensemble learning approach iteratively improves model performance by sequentially correcting errors, making it effective at capturing non-linear relationships between predictors and pH levels. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+set.seed(123)
+dtrain <- xgb.DMatrix(as.matrix(trainData[, -which(names(trainData) == "PH")]), label = trainData$PH)
+dtest <- xgb.DMatrix(as.matrix(testData[, -which(names(testData) == "PH")]))
+model_xgb <- xgboost(data = dtrain, max.depth = 6, eta = 0.3, nrounds = 100, objective = "reg:squarederror")
+predictions_xgb <- predict(model_xgb, dtest)
+rsq_xgb <- cor(predictions_xgb, testData$PH)^2
+```
+
+- Support Vector Regression model
+
+Support Vector Machines (SVMs) are another powerful technique for predicting beverage pH based on other variables. SVMs are effective in scenarios where the relationship between predictors and the outcome (pH) is not necessarily linear and can exhibit complex patterns. SVMs work by finding the optimal hyperplane to predict continuous outcomes. SVMs can handle datasets with a small number of samples
+
+```{r}
+set.seed(123)
+# Support Vector Regression (SVR)
+model_svr <- svm(PH ~ ., data = trainData)
+predictions_svr <- predict(model_svr, newdata = testData)
+rsq_svr <- cor(predictions_svr, testData$PH)^2
+```
+
+
+- Interpret the result
+
+Print R-squared values for comparison
+
+```{r}
+cat("Linear Regression R-squared:", rsq_lm, "\n")
+cat("XGBoost R-squared:", rsq_xgb, "\n")
+cat("Support Vector Regression R-squared:", rsq_svr, "\n")
+```
+
+The R-squared values provided for the different models—Linear Regression (0.41), XGBoost (0.68), and Support Vector Regression (0.57) reflect how well each model explains the variability in predicting beverage pH based on other variables.
+
+R-squared values highlight the superior predictive performance of XGBoost over linear regression and SVR in modeling beverage pH based on other variables, emphasizing its ability to handle complex relationships and improve model accuracy.
+
+- Most important predictors of pH using XGBoost
+
+```{r}
+# Extract feature importance
+importance_scores <- xgb.importance(model = model_xgb)
+
+# Print the top 5
+head(importance_scores, 5)
+```
+Features like Mnf.Flow, Brand Codes, Oxygen Filler, Pressure are the highest predictors of the pH's value.
+
+
+- Comparing actual vs. predicted values
+
+```{r}
+
+plot(testData$PH, predictions_xgb, 
+     main = "Actual vs. Predicted PH (XGBoost)",
+     xlab = "Actual PH",
+     ylab = "Predicted PH",
+     col = "blue",
+     pch = 19,
+     cex = 1.5)
+
+# Add a diagonal line to show perfect predictions
+abline(0, 1, col = "red")
+
+# Add legend
+legend("topleft", legend = "Predicted vs. Actual", col = c("blue", "red"), pch = c(19, NA), lty = c(NA, 1), cex = 0.8)
+```
+
+----
+
+# Scoring using the best prediction
+
+Load the data
+
+```{r}
+# Load necessary libraries
+library(readxl)  # For reading Excel files
+
+# Read new data from Excel file
+data <- read.csv("https://raw.githubusercontent.com/waheeb123/Data-624/main/Projects/Project-2/StudentEvaluation-%20TO%20PREDICT.csv")
+```
+
+Replace null values in Brand Code with the most common brand
+
+```{r}
+brand_counts <- table(data$Brand.Code)
+most_common_brand <- names(which.max(brand_counts))
+data$Brand.Code[is.na(data$Brand.Code)] <- most_common_brand
+```
+
+Let's impute the data using the package mice
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Create a mice imputation object
+submission_df <- mice(data, 
+                          method = 'pmm',
+                          m = 5, 
+                          maxit = 50)
+
+# Complete the imputation process
+submission_df <- complete(submission_df)
+```
+
+
+Remove collinearities
+
+```{r}
+submission_df <- submission_df[, !colnames(submission_df) %in% "Carb Pressure"]
+submission_df <- submission_df[, !colnames(submission_df) %in% "Hyd Pressure3"]
+submission_df <- submission_df[, !colnames(submission_df) %in% "Balling Lvl"]
+submission_df <- submission_df[, !colnames(submission_df) %in% "Carb Rel"]
+```
+
+Create dummy variables
+
+```{r}
+# Create dummies variables
+submission_df <- fastDummies::dummy_cols(submission_df,
+                                              remove_first_dummy = TRUE)
+
+# Remove the Brand Code column
+submission_df <- subset(submission_df, select = - Brand.Code)
+
+# Print the 5 elements of the data
+head(submission_df)
+```
+
+Predict the PH using the XGBoost model
+
+```{r}
+# Convert df_test to xgb.DMatrix format
+submission_df_xgb <- xgb.DMatrix(as.matrix(
+  submission_df[, -which(names(submission_df) == "PH")]))
+
+# Predict using the XGBoost model
+predictions_xgb <- predict(model_xgb, submission_df_xgb)
+
+# Replace PH column in df_test with predictions
+submission_df$PH <- predictions_xgb
+```
+
+
+Export the data
+
+```{r}
+data$PH <- submission_df$PH
+
+# Define file path for the Excel file
+file_path <- "submission_df_proj_2_624.xlsx"
+
+# Export submission_df to Excel
+write.xlsx(data, file_path, rowNames = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----
