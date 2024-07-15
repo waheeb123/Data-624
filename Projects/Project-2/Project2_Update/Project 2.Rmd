@@ -3,8 +3,8 @@ title: "Project 2"
 author: "Waheeb Algabri, William Berritt, Kossi Akplaka"
 date: "2024-07-12"
 output:
-  word_document: default
   html_document: default
+  word_document: default
   pdf_document: default
 ---
 

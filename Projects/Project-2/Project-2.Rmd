@@ -16,6 +16,7 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = TRUE)
 ```
 
+
 ```{r}
 # Load necessary libraries
 library(readxl)
@@ -26,24 +27,13 @@ library(randomForest)
 
 ```
 
-
 ```{r}
-# Load the datasets
-data_type <- read_excel ("Projects/Project-2/Copy of Data Columns, Types.xlsx")
-data <- read_excel ( "Projects/Project-2/StudentData - TO MODEL.xlsx" )
-scoring_data <- read_excel ("Projects/Project-2/StudentEvaluation- TO PREDICT.xlsx" )
+file_path <- "Projects/Project-2/Copy of Data Columns, Types.xlsx"
+
+# Read the Excel file
+data_coulmn<- read_excel(file_path)
+
+# View the first few rows of the data
+head(data_coulmn)
 ```
-
-```{r}
-# Initial data exploration
-glimpse(data)
-summary(data)
-sum(is.na(data))
-```
-
-
-```{r}
-plot_missing(data)
-```
-
 
